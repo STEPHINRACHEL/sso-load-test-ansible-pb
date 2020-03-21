@@ -1,0 +1,33 @@
+---
+- name: To execute the SSO LOAD TEST
+  hosts: ec2-3-8-28-1.eu-west-2.compute.amazonaws.com
+  tasks:
+    - name: Copy the file from my PC to cluster
+      copy:
+        src: /Users/stethoma/amsible-work/keycloak/testsuite/performance/tests/target/provisioned-system.properties
+        dest: /home/centos/keycloak/testsuite/performance/tests/target/provisioned-system.properties
+        owner: centos
+        group: centos
+        mode: '0764'
+
+    - name: execute the commands
+      command: "{{ item }}"
+      become: yes
+      become_user: centos
+      args:
+        chdir: /home/centos/keycloak/testsuite/performance/
+      with_items: 
+        #- cd /home/centos/keycloak/testsuite/performance/
+        - mvn clean install
+        - mvn verify -Pgenerate-data -Ddataset=1r_10c_100u -DnumOfWorkers=10
+        - export WARMUP_PERIOD=900
+        - export RAMPUP_PERIOD=10
+        - export MEASUREMENT_PERIOD=900
+        - export STRESS_TEST_MAX_ITERATIONS=1
+        - ./stress-test.sh -DmaxMeanResponseTime=1000
+      register: reg_out
+
+    - name: Display the output
+      debug: 
+       # msg: ”{{ reg_out.results | map (attribute=’stdout_lines’) | list }}”
+        msg: "{{reg_out}}"
